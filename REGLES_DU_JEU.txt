@@ -1,0 +1,432 @@
+══════════════════════════════════════════════════════════════════
+                     PROCESS CYBER — RÈGLES DU JEU
+                         Guide complet v1.0
+══════════════════════════════════════════════════════════════════
+
+
+───────────────────────────────────────────────────────────────────
+  1. PRÉSENTATION
+───────────────────────────────────────────────────────────────────
+
+Process Cyber est un jeu de gestion de projets informatiques à thème
+cybersécurité, opposant deux joueurs (ou un joueur contre l'IA). Chaque
+joueur incarne un chef de projet qui doit faire avancer des projets de
+sécurité, gérer les risques, jouer des atouts stratégiques et satisfaire
+les exigences de conformité avant ses adversaires.
+
+Les projets vont de simples audits (S0) à des déploiements critiques
+d'infrastructure (S3). Chaque projet demande du temps, des preuves de
+conformité, et une gestion prudente du risque.
+
+
+───────────────────────────────────────────────────────────────────
+  2. OBJECTIF — CONDITIONS DE VICTOIRE
+───────────────────────────────────────────────────────────────────
+
+La partie se termine dès qu'une condition de victoire est remplie :
+
+  • SCORE       : Atteindre ou dépasser 10 points (projets terminés).
+  • DOMINATION  : Terminer 3 projets de criticité S3.
+  • FIN DE PILE : Si la pile Projet est vide et que tous les projets
+                  actifs sont en état "Terminé" ou "NO GO", le joueur
+                  avec le plus de points l'emporte.
+  • TOURS MAX   : Après 20 tours, le joueur avec le plus de points gagne.
+
+En cas d'égalité de score, la partie continue jusqu'à ce qu'un joueur
+prenne l'avantage.
+
+
+───────────────────────────────────────────────────────────────────
+  3. MISE EN PLACE
+───────────────────────────────────────────────────────────────────
+
+Avant le premier tour, chaque joueur choisit un projet parmi 3 options
+tirées aléatoirement depuis la pile Projet. Ce "draft" initial donne à
+chaque joueur un projet de départ.
+
+Les piles de départ contiennent :
+  - Pile Projet    : cartes de projets mélangées
+  - Pile Preuve    : preuves et attestations de conformité
+  - Pile Atout     : cartes stratégiques offensives et défensives
+  - Pile Événement : événements mondiaux déclenchés tous les 4 tours
+
+Aucune main de départ n'est distribuée — les cartes sont piochées au
+fil des tours.
+
+
+───────────────────────────────────────────────────────────────────
+  4. STRUCTURE D'UN TOUR
+───────────────────────────────────────────────────────────────────
+
+Chaque tour se déroule en 4 phases successives :
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  PHASE 1 : PIOCHE (Draw)                                    │
+  │                                                             │
+  │  Le joueur actif clique sur "Piocher" pour obtenir ses      │
+  │  cartes. S'il n'a pas de projet actif, il voit apparaître   │
+  │  3 options de projets et doit en choisir un (Draft).        │
+  │                                                             │
+  │  Sinon, il pioche automatiquement :                         │
+  │    - 1 carte Atout (si main < 5 cartes)                     │
+  │    - 1 carte Preuve (si main < 5 cartes)                    │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  PHASE 2 : ACTION PRINCIPALE (Main)                         │
+  │                                                             │
+  │  Le joueur effectue UNE action principale parmi :           │
+  │    - Avancer un projet d'une étape                          │
+  │    - Jouer une carte Preuve sur un projet                   │
+  │    - Jouer une carte Atout (effet immédiat)                 │
+  │                                                             │
+  │  De plus, indépendamment de l'action principale :           │
+  │    - 1 Preuve peut être jouée par tour                      │
+  │    - 1 Atout peut être joué par tour                        │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  PHASE 3 : ACTION BONUS (Secondary)                         │
+  │                                                             │
+  │  Le joueur peut effectuer une seconde action (optionnelle): │
+  │    - Avancer un projet                                      │
+  │    - Jouer une carte                                        │
+  │  Il peut aussi passer cette phase ("Passer le bonus").      │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  PHASE 4 : RÉSOLUTION (Resolution/End)                      │
+  │                                                             │
+  │  Le joueur clique "Fin de tour". Les effets de blocage      │
+  │  sont décrémentés. Tous les 4 tours, un événement mondial   │
+  │  se déclenche et affecte tous les projets.                  │
+  └─────────────────────────────────────────────────────────────┘
+
+
+───────────────────────────────────────────────────────────────────
+  5. LES CARTES PROJET
+───────────────────────────────────────────────────────────────────
+
+Un projet représente une mission de cybersécurité à mener à bien.
+
+ATTRIBUTS D'UN PROJET :
+  • Criticité   : S0 (simple), S1 (standard), S2 (complexe), S3 (critique)
+  • Nom         : intitulé du projet
+  • Étapes      : liste des phases à franchir (ex : Analyse → Conception
+                  → Développement → Tests → Déploiement)
+  • Valeur      : points gagnés à la completion (en général 1 à 5 pts)
+  • Risque      : niveau de risque actuel (0–100%)
+  • Seuil max   : si le risque atteint ce seuil, le projet passe en NO GO
+  • Preuves     : liste des preuves obligatoires pour la validation
+
+STATUTS D'UN PROJET :
+  • En cours  : actif, peut être avancé
+  • Bloqué    : suspendu N tours (effet d'un atout adverse)
+  • NO GO     : projet annulé, plus aucune action possible sur lui
+  • GO        : après revue de conformité avec succès (voir section 8)
+  • GO avec Réserves : validé malgré des preuves manquantes (voir sec. 8)
+  • Terminé   : projet complété, points crédités
+
+Un joueur peut avoir jusqu'à 3 projets simultanément actifs (En cours
+ou Bloqué). Les projets Terminés ou NO GO ne comptent plus dans ce plafond.
+
+
+───────────────────────────────────────────────────────────────────
+  6. AVANCEMENT D'UN PROJET
+───────────────────────────────────────────────────────────────────
+
+Pour avancer un projet :
+  1. Sélectionner le projet sur le plateau (clic ou sélection)
+  2. Cliquer sur "Avancer projet" dans la barre d'action
+
+À chaque avancement :
+  - Le compteur d'étapes progresse de 1
+  - Le niveau de risque augmente de +8 points
+  - Si le risque atteint le seuil maximal AVANT la dernière étape :
+    → Le projet passe immédiatement en NO GO
+
+Quand le projet atteint la DERNIÈRE ÉTAPE (100%) :
+  → La Revue de Conformité se déclenche (voir section 8)
+
+
+───────────────────────────────────────────────────────────────────
+  7. LES CARTES PREUVE
+───────────────────────────────────────────────────────────────────
+
+Les preuves sont des attestations de conformité : rapports d'audit,
+PIA (Privacy Impact Assessment), schémas d'architecture, certificats...
+
+Jouer une preuve sur un projet :
+  - Réduit le niveau de risque du projet de 10 points
+  - Coche la preuve comme "attachée" sur ce projet
+  - Utilise l'action principale ou bonus du tour
+
+Les preuves requises par un projet sont visibles sur sa carte (section
+"Preuves requises"). Une preuve ne peut être attachée qu'une seule fois
+par projet.
+
+Si toutes les preuves requises sont présentes au moment de la Revue
+de Conformité, le projet obtient un GO complet (score maximal).
+
+
+───────────────────────────────────────────────────────────────────
+  8. REVUE DE CONFORMITÉ (100% des étapes atteintes)
+───────────────────────────────────────────────────────────────────
+
+Quand un projet atteint sa dernière étape, le jeu déclenche
+automatiquement une Revue de Conformité. L'interface affiche une
+animation de vérification pendant 2 secondes, puis révèle le verdict :
+
+  ┌──────────────────────────────────────────────────────────┐
+  │  CRITÈRE              │  RÉSULTAT                        │
+  │─────────────────────────────────────────────────────────│
+  │  Risque >= seuil max  │  NO GO — projet annulé           │
+  │  Risque OK + toutes   │  GO — points complets crédités   │
+  │  les preuves          │                                  │
+  │  Risque OK + preuves  │  GO avec Réserves — points       │
+  │  manquantes           │  réduits de moitié (min. 1 pt)   │
+  └──────────────────────────────────────────────────────────┘
+
+La revue bloque toute action des deux joueurs le temps de l'animation.
+L'IA attend également la fin de la revue avant de reprendre son tour.
+
+Certains atouts (finalise, ignoreCondition) déclenchent aussi la revue.
+Les atouts aléatoires (goAleatoire, finalisAleatoire) court-circuitent
+la revue et appliquent directement le résultat du tirage.
+
+
+───────────────────────────────────────────────────────────────────
+  9. LES CARTES ATOUT
+───────────────────────────────────────────────────────────────────
+
+Les atouts sont des cartes à effet unique. Un seul atout peut être joué
+par tour. Ils se divisent en plusieurs catégories :
+
+OFFENSIFS (ciblent les projets adverses) :
+  • noGo           : annule immédiatement un projet adverse
+  • bloque         : bloque un projet adverse pendant 2 tours
+  • sauteTour      : l'adversaire perd son prochain tour
+  • defausseAtout  : l'adversaire perd un atout aléatoire
+  • recule         : recule d'une étape le projet le plus avancé adverse
+  • reculeTous     : recule d'une étape le meilleur projet de chaque joueur
+  • reculeGrands   : recule d'une étape tous les projets S3
+  • retirePreuve   : retire une preuve du projet adverse
+
+DÉFENSIFS / SOUTIEN (ciblent ses propres projets) :
+  • avance         : avance un projet d'1 étape (risque +5)
+  • avance2        : avance un projet de 2 étapes (risque +8/étape)
+  • avance3        : avance un projet de 3 étapes (risque +20/étape)
+  • avanceTous     : tous les projets actifs avancent d'1 étape
+  • avanceDeux     : 2 projets avancent chacun d'1 étape
+  • avancePetits   : tous les projets S0/S1 avancent (tous joueurs)
+  • avanceTousJoueurs : le meilleur projet de chaque joueur avance
+  • avanceRisque   : avance un projet de 2 étapes (risque +25/étape)
+  • finalise       : amène un projet directement à la dernière étape
+                     (déclenche la revue de conformité)
+  • ignoreCondition: avance d'1 étape en ignorant les conditions
+  • reduceRisk     : réduit le risque d'un projet de 30 points
+  • retirage       : relance un projet en NO GO (risque -20)
+  • doublePioche   : pioche 2 preuves supplémentaires
+  • piocheBonus    : pioche 1 carte supplémentaire
+  • immunite       : protection ce tour contre les effets adverses
+  • annuleEvent    : annule l'événement mondial actif
+  • annuleMalus    : annule le prochain effet négatif reçu
+  • doubleCarte    : débloque une action bonus ce tour
+  • echangeAtout   : échange un atout aléatoire avec l'adversaire
+  • recategorise   : rétrograde un projet S2 en S1 (seuil de risque +)
+
+ALÉATOIRES (résultat imprévisible) :
+  • goAleatoire    : 50% de GO immédiat, 50% de NO GO
+  • finalisAleatoire : 30% de GO immédiat, 70% de NO GO
+  • rushSansPreuve : force 3 étapes d'avancement avec risque élevé (+20)
+
+Certains atouts peuvent être joués sans cible (effet global) ou
+doivent cibler un projet spécifique.
+
+
+───────────────────────────────────────────────────────────────────
+  10. LES ÉVÉNEMENTS MONDIAUX
+───────────────────────────────────────────────────────────────────
+
+Tous les 4 tours, un événement mondial se déclenche et affecte TOUS
+les projets de TOUS les joueurs. Les événements sont tirés aléatoirement.
+
+Types d'événements :
+  • increaseRisk   : augmente le niveau de risque de tous les projets
+                     (+10 pour S0/S1, +20 pour S2/S3). Les projets dont
+                     le risque dépasse le seuil passent en NO GO.
+  • preuveSup      : tous les projets S2 et S3 requièrent désormais
+                     une preuve supplémentaire "Audit ANSSI".
+  • perdTour       : les joueurs perdent leur prochain tour.
+  • verifProjet    : vérification des projets en cours (effet variable).
+  • gelBudget      : gel budgétaire affectant les actions.
+
+L'atout "annuleEvent" permet d'annuler l'événement actif.
+
+
+───────────────────────────────────────────────────────────────────
+  11. LE SYSTÈME DE RISQUE
+───────────────────────────────────────────────────────────────────
+
+Chaque projet possède un niveau de risque (0–100%) et un seuil maximal
+(maxRisk). Si le risque atteint ou dépasse le seuil, le projet est
+automatiquement annulé (NO GO).
+
+Évolutions du risque :
+  • +8  par avancement manuel (action principale/bonus)
+  • +5 à +25 selon les atouts d'avancement utilisés
+  • -10 à l'attachement d'une preuve
+  • -30 avec l'atout "reduceRisk"
+  • +10 à +20 lors des événements "increaseRisk"
+
+La barre de risque est visible sur chaque carte projet. Elle passe
+du vert au orange puis au rouge à mesure que le seuil approche.
+
+Seuils typiques par criticité :
+  • S0 : 90% (peu de contraintes)
+  • S1 : 80%
+  • S2 : 70%
+  • S3 : 60% (très sensible)
+
+
+───────────────────────────────────────────────────────────────────
+  12. L'INTELLIGENCE ARTIFICIELLE (Ordinateur)
+───────────────────────────────────────────────────────────────────
+
+Le joueur 2 est contrôlé par une IA qui joue automatiquement son tour
+avec un délai simulé (animations visibles à l'écran).
+
+Priorités de l'IA (ordre décroissant) :
+  1. Finaliser immédiatement son meilleur projet (atout "finalise")
+  2. Attaquer le projet adverse le plus avancé (≥ 60%) avec un malus
+  3. Réduire le risque d'un projet dangereusement élevé (> 65%)
+  4. Booster l'avancement de son meilleur projet (atouts d'avancement)
+  5. Relancer un projet en NO GO (atout "retirage")
+  6. Attacher une preuve à un projet actif si une correspondance existe
+  7. Avancer son projet le plus avancé d'une étape
+  8. Terminer son tour si aucune action n'est disponible
+
+L'IA choisit ses projets lors du Draft en sélectionnant celui qui
+offre le meilleur ratio valeur/nombre d'étapes.
+
+L'IA attend la fin de la Revue de Conformité avant de reprendre ses
+actions, comme le ferait un joueur humain.
+
+
+───────────────────────────────────────────────────────────────────
+  13. MÉCANIQUES AVANCÉES
+───────────────────────────────────────────────────────────────────
+
+BLOCAGE DE PROJET :
+  L'atout "bloque" bloque un projet pendant 2 tours. Un projet bloqué
+  ne peut pas être avancé. Le compteur se décrémente à chaque fin de
+  tour. À 0, le projet repasse automatiquement "En cours".
+
+SAUTE-TOUR :
+  L'atout "sauteTour" impose à l'adversaire de passer son prochain tour
+  complet. Le tour forcé saute directement à la résolution.
+
+ÉCHANGE D'ATOUT :
+  "echangeAtout" échange un atout aléatoire de la main du joueur avec
+  un atout aléatoire de la main adverse. Peut être risqué.
+
+RECATÉGORISATION :
+  "recategorise" rétrograde un projet S2 en S1, ce qui augmente son
+  seuil de risque et le rend plus facile à terminer. Utile en fin de
+  partie pour sécuriser un projet menacé.
+
+PREUVES RETIRÉES :
+  L'atout "retirePreuve" retire la dernière preuve attachée à un projet
+  adverse, augmentant son risque de 15 points. Peut perturber un projet
+  proche de la complétion.
+
+
+───────────────────────────────────────────────────────────────────
+  14. DRAG & DROP
+───────────────────────────────────────────────────────────────────
+
+En plus du clic, les cartes en main peuvent être glissées-déposées
+directement sur un projet du plateau :
+  - Glisser une Preuve → l'attache au projet cible
+  - Glisser un Atout → joue l'atout sur le projet cible
+
+Le projet cible se met en surbrillance verte pendant le survol.
+
+
+───────────────────────────────────────────────────────────────────
+  15. LE JOURNAL D'ACTIONS
+───────────────────────────────────────────────────────────────────
+
+Le journal (colonne gauche) enregistre toutes les actions de la partie.
+Il est divisé en deux zones :
+  • Zone haute (scrollable) : historique complet, en opacité réduite
+  • Zone basse (fixe)       : les 4 dernières actions, toujours visibles
+
+Les 4 types d'entrées :
+  • action  (point cyan)   : avancement, preuve, atout joué
+  • event   (point rouge)  : NO GO, blocage, événement déclenché
+  • system  (point gris)   : messages système (pioche, fin de tour...)
+  • score   (point vert)   : projet terminé, points crédités
+
+
+───────────────────────────────────────────────────────────────────
+  16. INTERFACE — RACCOURCIS ET CONTRÔLES
+───────────────────────────────────────────────────────────────────
+
+  • Sélectionner un projet   : clic sur la carte projet
+  • Avancer un projet        : sélectionner le projet puis "Avancer projet"
+  • Jouer une carte          : clic sur la carte en main → clic sur le projet
+                               OU glisser-déposer la carte sur le projet
+  • Désélectionner une carte : bouton "✕ Désélectionner" ou re-clic
+  • Jouer sans cible         : via le panneau "Carte sélectionnée" (colonne droite)
+  • Piocher                  : bouton "Piocher" en phase Draw
+  • Passer le bonus          : bouton "Passer le bonus" en phase Secondary
+  • Fin de tour              : bouton "Fin de tour" en phase Resolution
+  • Nouvelle partie          : bouton "↺ Reset" en haut à droite
+  • Règles                   : bouton "📘 Règles" en haut à droite
+
+La colonne droite affiche :
+  - Les scores en temps réel
+  - Le nombre de tours avant le prochain événement
+  - La carte sélectionnée et son effet
+  - Le récapitulatif des actions effectuées ce tour
+
+
+───────────────────────────────────────────────────────────────────
+  17. STRATÉGIES ET CONSEILS
+───────────────────────────────────────────────────────────────────
+
+  ► Gérez le risque en priorité : attacher des preuves réduit le risque
+    et aide à valider les projets. Ne négligez pas cette mécanique.
+
+  ► Choisissez vos projets avec soin : un projet S3 rapporte plus mais
+    est plus fragile. En début de partie, les projets S1 permettent
+    d'engranger des points rapidement.
+
+  ► Préparez la revue : avant d'atteindre 100%, vérifiez que vous avez
+    toutes les preuves requises. Un GO avec Réserves ne rapporte que la
+    moitié des points.
+
+  ► Surveillance adverse : gardez un œil sur les projets ennemis.
+    Dès qu'un adversaire dépasse 60% d'avancement, envisagez de jouer
+    un malus (bloque, noGo, recule) pour le ralentir.
+
+  ► Dosez les risques : les atouts d'avancement rapide (avance3,
+    avanceRisque) font progresser vite mais accumulent beaucoup de
+    risque. À utiliser avec précaution sur les projets S3.
+
+  ► Contre l'IA : l'IA attaque dès que vous êtes à 60% ou plus. Si
+    vous avancez rapidement, préparez un atout défensif (immunite,
+    annuleMalus) en main pour contrer le blocage.
+
+  ► La pile de secours : l'atout "retirage" peut relancer un projet
+    NO GO. Conservez-en un en main si vous avancez des projets risqués.
+
+  ► Événements : planifiez à l'avance. Si un événement "increaseRisk"
+    arrive dans 1 tour, attachez une preuve ou réduisez le risque de
+    vos projets les plus fragiles avant la fin de tour.
+
+
+══════════════════════════════════════════════════════════════════
+                   Bonne partie — Joueur 1 !
+══════════════════════════════════════════════════════════════════
