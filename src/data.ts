@@ -1,4 +1,4 @@
-import type { ProjetCard, PreuveCard, AtoutCard, EvenementCard, ChefProjet } from './types';
+import type { ProjetCard, PreuveCard, AtoutCard, EvenementCard, ChefProjet, HiddenTrait } from './types';
 
 export const projetDeck: ProjetCard[] = [
   {
@@ -108,30 +108,30 @@ export const atoutDeck: AtoutCard[] = [
   { id: 'b15', type: 'Atout', subtype: 'bonus', exemplaires: 1, nom: 'Bonne humeur générale',    description: 'Tous les joueurs avancent leur projet principal d\'une étape.',             effet: 'avanceTousJoueurs' },
 
   // ─── MALUS (1 exemplaire chacun) ────────────────────────────────────────────
-  { id: 'm1',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Réunion interminable',    description: 'Empêche un adversaire de faire avancer un projet ce tour.',                 effet: 'bloque' },
+  { id: 'm1',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Réunion interminable',    description: 'Empêche un adversaire de faire avancer un projet ce tour.',                 effet: 'blocueCeTour' },
   { id: 'm2',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Modification de périmètre',description: "Un projet adverse recule d'une étape.",                                    effet: 'recule' },
-  { id: 'm3',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Licence CISCAT KO',       description: 'Bloque la progression adverse ce tour.',                                    effet: 'bloque' },
+  { id: 'm3',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Licence CISCAT KO',       description: 'Bloque la progression adverse ce tour.',                                    effet: 'blocueCeTour' },
   { id: 'm4',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'NO GO Jean-François',     description: 'Force un NO GO sur un projet adverse.',                                     effet: 'noGo' },
   { id: 'm5',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: "Bug sur la prod'",         description: "Un adversaire perd une étape sur son projet le plus avancé.",               effet: 'recule' },
-  { id: 'm6',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Retard fournisseur',      description: 'Bloque tous les avancements adverses ce tour.',                             effet: 'bloque' },
+  { id: 'm6',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Retard fournisseur',      description: 'Bloque tous les avancements adverses ce tour.',                             effet: 'bloqueTous' },
   { id: 'm7',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Ragequit de CdP',         description: "Un projet adverse recule d'une étape.",                                     effet: 'recule' },
   { id: 'm8',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Coupure réseau',          description: "L'adversaire ciblé ne peut pas piocher son prochain tour.",                 effet: 'sauteTour' },
   { id: 'm9',  type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Problème Tixeo',          description: 'Un adversaire se défausse d\'une carte atout.',                             effet: 'defausseAtout' },
-  { id: 'm10', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: "Plus d'appel de charges", description: 'Impossible de finaliser un projet ce tour (bloque le projet le plus avancé).', effet: 'bloque' },
+  { id: 'm10', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: "Plus d'appel de charges", description: 'Impossible de finaliser un projet ce tour (bloque le projet le plus avancé).', effet: 'blocueCeTour' },
   { id: 'm11', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Ticket Jira perdu',       description: 'Recule automatiquement la dernière étape franchie.',                        effet: 'recule' },
   { id: 'm12', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'ARGO Compliance',         description: "Tous les joueurs reculent d'une étape sur leur meilleur projet.",            effet: 'reculeTous' },
   { id: 'm13', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Décision en attente',     description: "L'adversaire ciblé passe son prochain tour.",                               effet: 'sauteTour' },
   { id: 'm14', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Procédure floue',         description: "Un projet adverse recule d'une étape au hasard.",                           effet: 'recule' },
-  { id: 'm15', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Retard volontaire',       description: "Un adversaire ne peut pas avancer ce tour.",                                effet: 'bloque' },
+  { id: 'm15', type: 'Atout', subtype: 'malus', exemplaires: 1, nom: 'Retard volontaire',       description: "Un adversaire ne peut pas avancer ce tour.",                                effet: 'blocueCeTour' },
 
   // ─── BLUFF (1 exemplaire chacun) ────────────────────────────────────────────
-  { id: 'bl1',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Ticket Jira fantôme',       description: 'Bloque un projet adverse (activation surprise).',              effet: 'bloque' },
+  { id: 'bl1',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Ticket Jira fantôme',       description: 'Bloque un projet adverse (activation surprise).',              effet: 'blocueCeTour' },
   { id: 'bl2',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Phase pilote non documentée',description: "Retire une preuve d'un projet adverse.",                        effet: 'retirePreuve' },
   { id: 'bl3',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Cadeau du RSSI ?',           description: 'Annule le prochain malus joué contre vous.',                   effet: 'annuleMalus' },
   { id: 'bl4',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Fausse relance',             description: "Un adversaire se défausse d'une carte atout.",                  effet: 'defausseAtout' },
   { id: 'bl5',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: "T'as pensé à …",             description: 'Pioche 2 preuves supplémentaires en bluffant l\'adversaire.',   effet: 'doublePioche' },
-  { id: 'bl6',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Chef de projet fantôme',     description: "Bloque un projet adverse ce tour.",                             effet: 'bloque' },
-  { id: 'bl7',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Tension inter-équipes',      description: "Bloque tous les projets adverses ce tour.",                    effet: 'bloque' },
+  { id: 'bl6',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Chef de projet fantôme',     description: "Bloque un projet adverse ce tour.",                             effet: 'blocueCeTour' },
+  { id: 'bl7',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Tension inter-équipes',      description: "Bloque tous les projets adverses ce tour.",                    effet: 'bloqueTous' },
   { id: 'bl8',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Fausse rumeur de GO',        description: 'Tente un GO forcé sur un projet adverse (50/50).',             effet: 'goAleatoire' },
   { id: 'bl9',  type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Erreur de périmètre',        description: "Un projet adverse recule d'une étape.",                        effet: 'recule' },
   { id: 'bl10', type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Documentation vide',         description: "Un projet adverse recule d'une étape.",                        effet: 'recule' },
@@ -188,12 +188,14 @@ export function shuffle<T>(items: T[]): T[] {
 }
 
 export function cloneProjet(p: ProjetCard): ProjetCard {
-  return { ...p, currentStep: 0, preuvesAttachees: [], status: 'En cours', blockedTurns: 0, riskLevel: p.riskLevel };
+  const traits: HiddenTrait[] = ['hidden_risk', 'point_bonus', 'special_event'];
+  const hiddenTrait = traits[Math.floor(Math.random() * traits.length)];
+  return { ...p, currentStep: 0, preuvesAttachees: [], status: 'En cours', blockedTurns: 0, riskLevel: p.riskLevel, hiddenTrait, hiddenTraitRevealed: false };
 }
 
 export function buildPreuvePile(): PreuveCard[] {
   return shuffle(
-    Array.from({ length: 3 }, () => preuveDeck).flat().map((c, i) => ({ ...c, id: `${c.id}-${i}` }))
+    Array.from({ length: 5 }, () => preuveDeck).flat().map((c, i) => ({ ...c, id: `${c.id}-${i}` }))
   );
 }
 

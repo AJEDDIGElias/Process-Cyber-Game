@@ -5,11 +5,10 @@ import type { TurnPhase } from '../types';
 const PHASES: { key: TurnPhase; label: string; icon: string }[] = [
   { key: 'draw', label: 'Pioche', icon: '🃏' },
   { key: 'main', label: 'Action', icon: '⚔️' },
-  { key: 'secondary', label: 'Bonus', icon: '⚡' },
   { key: 'resolution', label: 'Résolution', icon: '🔄' },
 ];
 
-const phaseOrder: TurnPhase[] = ['draw', 'main', 'secondary', 'resolution', 'end'];
+const phaseOrder: TurnPhase[] = ['draw', 'main', 'resolution', 'end'];
 
 export default function PhaseBar({ phase, tour, maxTours }: { phase: TurnPhase; tour: number; maxTours: number }) {
   const phaseIdx = phaseOrder.indexOf(phase);

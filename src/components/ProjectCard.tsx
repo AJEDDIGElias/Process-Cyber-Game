@@ -3,6 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjetCard } from '../types';
 import RiskMeter from './RiskMeter';
 
+const TRAIT_CFG: Record<string, { label: string; icon: string; colorClass: string; borderClass: string; bgClass: string }> = {
+  hidden_risk:   { label: 'Code Legacy',       icon: '⚠️', colorClass: 'text-cyber-orange', borderClass: 'border-cyber-orange/40', bgClass: 'bg-cyber-orange/10' },
+  point_bonus:   { label: 'Audit Privé',        icon: '✨', colorClass: 'text-cyber-green',  borderClass: 'border-cyber-green/40',  bgClass: 'bg-cyber-green/10'  },
+  special_event: { label: 'Shadow IT',          icon: '📋', colorClass: 'text-cyber-purple', borderClass: 'border-cyber-purple/40', bgClass: 'bg-cyber-purple/10' },
+};
+
 const CRIT_STYLES: Record<string, { border: string; badge: string; glow: string; label: string }> = {
   S0: { border: 'border-slate-500/50', badge: 'bg-slate-500/20 text-slate-400', glow: '', label: 'Simple' },
   S1: { border: 'border-cyber-yellow/50', badge: 'bg-cyber-yellow/15 text-cyber-yellow', glow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.2)]', label: 'Standard' },
@@ -23,6 +29,8 @@ type Props = {
   isSelected?: boolean;
   isOpponent?: boolean;
   isDropTarget?: boolean;
+  isShielded?: boolean;
+  isMainPhaseActive?: boolean;
   animationHint?: 'atout';
   onClick?: () => void;
   onDragOver?: (e: React.DragEvent) => void;
@@ -30,9 +38,9 @@ type Props = {
   onDragLeave?: () => void;
 };
 
-type FlashType = 'advance' | 'proof' | 'atout';
+type FlashType = 'advance' | 'setback' | 'proof' | 'atout';
 
-export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarget, animationHint, onClick, onDragOver, onDrop, onDragLeave }: Props) {
+export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarget, isShielded, isMainPhaseActive, animationHint, onClick, onDragOver, onDrop, onDragLeave }: Props) {
   const crit = CRIT_STYLES[projet.criticite];
   const isTermine = projet.status === 'Terminé';
   const isNoGo = projet.status === 'NO GO';
@@ -52,6 +60,7 @@ export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarg
 
   useEffect(() => {
     if (projet.currentStep > prevStep.current) triggerFlash('advance');
+    else if (projet.currentStep < prevStep.current) triggerFlash('setback');
     prevStep.current = projet.currentStep;
   }, [projet.currentStep]);
 
@@ -83,10 +92,62 @@ export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarg
         isDropTarget ? 'ring-2 ring-cyber-green shadow-[0_0_20px_rgba(0,255,136,0.4)] scale-105' : '',
         isTermine ? 'opacity-60 saturate-50' : '',
         isNoGo ? 'border-cyber-red/80' : '',
-        isBloque ? 'border-cyber-orange/70' : '',
+        isBloque ? 'border-cyber-red/60 hover:shadow-[0_0_22px_rgba(255,59,59,0.45)]' : '',
+        isShielded && !isBloque ? 'hover:shadow-[0_0_22px_rgba(250,204,21,0.5)] hover:border-cyber-yellow/60' : '',
         isOpponent ? 'opacity-80' : '',
       ].join(' ')}
     >
+      {/* ── Main phase pulsing white ring ─────────────────────── */}
+      {isMainPhaseActive && !isBloque && !isTermine && !isNoGo && (
+        <motion.div
+          className="absolute inset-0 rounded-2xl pointer-events-none z-5"
+          animate={{
+            boxShadow: [
+              '0 0 0 1px rgba(255,255,255,0.15), 0 0 6px rgba(255,255,255,0)',
+              '0 0 0 2px rgba(255,255,255,0.65), 0 0 18px rgba(255,255,255,0.25)',
+              '0 0 0 1px rgba(255,255,255,0.15), 0 0 6px rgba(255,255,255,0)',
+            ],
+          }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+
+      {/* ── Status badges top-left ─────────────────────────── */}
+      <AnimatePresence>
+        {(isShielded || isBloque) && (
+          <motion.div
+            className="absolute top-2 left-2 z-20 flex items-center gap-1"
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+            transition={{ duration: 0.2 }}
+          >
+            {isShielded && (
+              <motion.div
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] cursor-default"
+                style={{ background: 'rgba(250,204,21,0.18)', border: '1px solid rgba(250,204,21,0.65)' }}
+                animate={{ boxShadow: ['0 0 4px rgba(250,204,21,0.4)', '0 0 10px rgba(250,204,21,0.7)', '0 0 4px rgba(250,204,21,0.4)'] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                title="Joueur protégé — prochain malus annulé"
+              >
+                🛡
+              </motion.div>
+            )}
+            {isBloque && (
+              <motion.div
+                className="flex items-center gap-0.5 px-1.5 h-5 rounded-full text-[8px] font-bold cursor-default"
+                style={{ background: 'rgba(255,59,59,0.18)', border: '1px solid rgba(255,59,59,0.65)', color: '#ff3b3b' }}
+                animate={{ boxShadow: ['0 0 4px rgba(255,59,59,0.4)', '0 0 10px rgba(255,59,59,0.7)', '0 0 4px rgba(255,59,59,0.4)'] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                title={`Projet bloqué — ${projet.blockedTurns} tour(s) restant(s)`}
+              >
+                🔒 <span>{projet.blockedTurns}T</span>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Criticité indicator stripe */}
       <div className={`absolute top-0 left-4 right-4 h-0.5 rounded-b-full ${
         projet.criticite === 'S3' ? 'bg-cyber-purple' :
@@ -127,6 +188,32 @@ export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarg
               transition={{ duration: 0.75, ease: 'easeOut' }}
             >
               +1
+            </motion.div>
+          </>
+        )}
+
+        {flash === 'setback' && (
+          <>
+            {/* Red radial glow */}
+            <motion.div
+              key={`setback-bg-${flashKey.current}`}
+              className="absolute inset-0 rounded-2xl pointer-events-none z-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0.55, 0] }}
+              transition={{ duration: 0.75, times: [0, 0.25, 1] }}
+              onAnimationComplete={() => setFlash(null)}
+              style={{ background: 'radial-gradient(ellipse at 50% 60%, rgba(255,59,59,0.55), transparent 70%)' }}
+            />
+            {/* Floating -1 */}
+            <motion.div
+              key={`setback-float-${flashKey.current}`}
+              className="absolute left-1/2 -translate-x-1/2 font-bold text-base pointer-events-none z-30"
+              style={{ top: '30%', color: '#ff3b3b', filter: 'drop-shadow(0 0 6px rgba(255,59,59,0.9))' }}
+              initial={{ opacity: 1, y: 0 }}
+              animate={{ opacity: 0, y: -28 }}
+              transition={{ duration: 0.75, ease: 'easeOut' }}
+            >
+              -1
             </motion.div>
           </>
         )}
@@ -203,6 +290,24 @@ export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarg
             </span>
           </div>
           <h3 className="text-white text-xs font-semibold leading-tight truncate">{projet.nom}</h3>
+          {/* Hidden trait badge */}
+          {!isOpponent && projet.hiddenTrait && (
+            projet.hiddenTraitRevealed ? (
+              <div className={`inline-flex items-center gap-1 mt-0.5 text-[8px] px-1.5 py-0.5 rounded border ${TRAIT_CFG[projet.hiddenTrait]?.bgClass} ${TRAIT_CFG[projet.hiddenTrait]?.borderClass} ${TRAIT_CFG[projet.hiddenTrait]?.colorClass}`}>
+                <span>{TRAIT_CFG[projet.hiddenTrait]?.icon}</span>
+                <span>{TRAIT_CFG[projet.hiddenTrait]?.label}</span>
+              </div>
+            ) : (
+              <motion.div
+                className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1.5 py-0.5 rounded border border-slate-600/50 text-slate-500 bg-slate-800/30"
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <span>?</span>
+                <span>Trait caché</span>
+              </motion.div>
+            )
+          )}
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-[10px] text-slate-500">Valeur</p>

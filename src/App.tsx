@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import type { ProjetCard, AtoutCard, PreuveCard, Card } from './types';
+import type { ProjetCard, AtoutCard, PreuveCard, Card, TurnPhase } from './types';
 import PhaseBar from './components/PhaseBar';
+import PhaseBanner from './components/PhaseBanner';
 import EventBanner from './components/EventBanner';
 import ProjectCard from './components/ProjectCard';
 import HandCard from './components/HandCard';
@@ -11,6 +12,9 @@ import RulesModal from './components/RulesModal';
 import WinnerOverlay from './components/WinnerOverlay';
 import ProjectDraftModal from './components/ProjectDraftModal';
 import ConformityReviewOverlay from './components/ConformityReviewOverlay';
+import CardPlayAnimation from './components/CardPlayAnimation';
+import ReactionWindow from './components/ReactionWindow';
+import ProofSelectionModal from './components/ProofSelectionModal';
 import { computeAIAction } from './ai';
 
 export default function App() {
@@ -21,16 +25,37 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [dragCardId, setDragCardId] = useState<string | null>(null);
   const [atoutTargetId, setAtoutTargetId] = useState<string | null>(null);
+  const [playingCard, setPlayingCard] = useState<Card | null>(null);
+
+  const [bannerPhase, setBannerPhase] = useState<TurnPhase | null>(null);
 
   const activePlayer = game.joueurs[game.currentPlayer];
   const opponent = game.joueurs[(game.currentPlayer + 1) % 2];
   const selectedCard = activePlayer.main.find(c => c.id === selectedCardId);
   const reviewPending = game.pendingConformityReview !== null;
-  const canAct = (game.phase === 'main' || game.phase === 'secondary') && !activePlayer.isAI && !reviewPending;
-  const isAITurn = !game.winner && activePlayer.isAI === true && !reviewPending;
+  const reactionPending = game.pendingReactionWindow !== null;
+  const proofSelectionPending = game.pendingProofSelection !== null;
+  // Phase principale fusionnée — le joueur dispose de 2 AP par tour
+  const canAct = game.phase === 'main' && !activePlayer.isAI && !reviewPending && !reactionPending && !proofSelectionPending;
+
+  // Preuves requises par les projets actifs du joueur courant (pour le modal de sélection)
+  const activeProjectNeeds = activePlayer.projets
+    .filter(p => p.status === 'En cours')
+    .flatMap(p => p.preuvesRequises.filter(r => !p.preuvesAttachees.includes(r)));
+  const isAITurn = !game.winner && activePlayer.isAI === true && !reviewPending && !reactionPending;
+
+  // ── Hearthstone-style play animation ──────────────────────────
+  const triggerPlayAnim = (cardId: string) => {
+    const card = activePlayer.main.find(c => c.id === cardId);
+    if (card) {
+      setPlayingCard(card);
+      setTimeout(() => setPlayingCard(null), 780);
+    }
+  };
 
   // ── Atout with animation ───────────────────────────────────────
   const playAtoutWithAnim = (cardId: string, targetId?: string) => {
+    triggerPlayAnim(cardId);
     game.playAtout(cardId, targetId);
     if (targetId) {
       setAtoutTargetId(targetId);
@@ -40,6 +65,7 @@ export default function App() {
 
   // ── Drag & Drop ────────────────────────────────────────────────
   const handleDragStart = (card: Card) => (e: React.DragEvent) => {
+    if (!canAct) { e.preventDefault(); return; }
     e.dataTransfer.setData('cardId', card.id);
     setDragCardId(card.id);
   };
@@ -56,11 +82,13 @@ export default function App() {
 
   const handleDrop = (projet: ProjetCard) => (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (!canAct) return;
     const cardId = e.dataTransfer.getData('cardId') || dragCardId;
     if (!cardId) return;
     const card = activePlayer.main.find(c => c.id === cardId);
     if (!card) return;
-    if (card.type === 'Preuve') game.attachProof(cardId, projet.id);
+    if (card.type === 'Preuve') { triggerPlayAnim(cardId); game.attachProof(cardId, projet.id); }
     else if (card.type === 'Atout') playAtoutWithAnim(cardId, projet.id);
     setDragCardId(null);
     setDropTargetId(null);
@@ -71,8 +99,9 @@ export default function App() {
   const handleProjectClick = (projet: ProjetCard, isOpponent: boolean) => {
     if (!canAct) return;
     if (selectedCard) {
-      // Play selected card on this project
+      // Play selected card on this project (only in secondary phase)
       if (selectedCard.type === 'Preuve' && !isOpponent) {
+        triggerPlayAnim(selectedCard.id);
         game.attachProof(selectedCard.id, projet.id);
         setSelectedCardId(null);
       } else if (selectedCard.type === 'Atout') {
@@ -91,11 +120,40 @@ export default function App() {
     }
   };
 
+  // Double-click on an Atout plays it immediately without target
+  const handleCardDoubleClick = (card: Card) => {
+    if (!canAct) return;
+    if (card.type === 'Atout') {
+      playAtoutWithAnim(card.id);
+      setSelectedCardId(null);
+    }
+  };
+
+  // Drag an Atout onto the empty board area (no project target)
+  const handleDragOverBoard = (e: React.DragEvent) => {
+    if (!canAct || !dragCardId) return;
+    const card = activePlayer.main.find(c => c.id === dragCardId);
+    if (card?.type !== 'Atout') return;
+    e.preventDefault();
+  };
+
+  const handleDropVoid = (e: React.DragEvent) => {
+    if (!canAct) return;
+    if (dropTargetId) return; // dropped on a project — handled by project handler
+    const cardId = e.dataTransfer.getData('cardId') || dragCardId;
+    if (!cardId) return;
+    const card = activePlayer.main.find(c => c.id === cardId);
+    if (!card || card.type !== 'Atout') return;
+    e.preventDefault();
+    playAtoutWithAnim(cardId);
+    setDragCardId(null);
+    setSelectedCardId(null);
+  };
+
   // ── Actions ────────────────────────────────────────────────────
   const handleAdvanceProject = () => {
     if (!selectedProjectId || !canAct) return;
-    const isBonus = game.phase === 'secondary';
-    game.advanceProject(selectedProjectId, isBonus);
+    game.advanceProject(selectedProjectId);
     setSelectedProjectId(null);
   };
 
@@ -109,9 +167,15 @@ export default function App() {
     setSelectedProjectId(null);
   };
 
-  const handleSkipToResolution = () => {
-    if (game.phase === 'secondary') handleEndTurn();
-  };
+  // Phases fusionnées — ces handlers ne sont plus utilisés mais conservés pour compatibilité
+
+  // ── Phase banner trigger ───────────────────────────────────────
+  useEffect(() => {
+    if (game.phase === 'end' || game.winner) return;
+    setBannerPhase(game.phase);
+    const t = setTimeout(() => setBannerPhase(null), 1700);
+    return () => clearTimeout(t);
+  }, [game.phase, game.currentPlayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── AI turn automation ─────────────────────────────────────────
   useEffect(() => {
@@ -128,7 +192,9 @@ export default function App() {
       switch (action.type) {
         case 'draw':          game.drawPhase(); break;
         case 'selectDraft':   game.selectDraftProject(action.projetId); break;
-        case 'advanceProject': game.advanceProject(action.projetId, action.asBonus); break;
+        case 'advanceProject':     game.advanceProject(action.projetId); break;
+        case 'selectProof':        game.selectProofFromPool(action.cardId); break;
+        case 'skipProofSelection': game.skipProofSelection(); break;
         case 'attachProof':   game.attachProof(action.cardId, action.projetId); break;
         case 'playAtout':
           playAtoutWithAnim(action.cardId, action.targetProjetId);
@@ -147,18 +213,21 @@ export default function App() {
     game.phase,
     game.currentPlayer,
     game.projectDraftOptions,
+    game.pendingProofSelection,
     game.winner,
     activePlayer.turnActions.mainActionDone,
-    activePlayer.turnActions.secondaryActionDone,
     activePlayer.turnActions.atoutJoue,
     activePlayer.turnActions.preuveJouee,
     activePlayer.turnActions.projetAvance,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const maxAP = activePlayer.chef?.id === 'c1' && game.tour % 2 === 0 ? 3 : 2;
+  const apUsed = (activePlayer.turnActions.projetAvance ? 1 : 0) + activePlayer.turnActions.atoutsJoues;
+  const apLeft = Math.max(0, maxAP - apUsed);
+
   const phaseLabel: Record<string, string> = {
     draw: game.projectDraftOptions ? 'Choisissez votre projet' : 'Cliquez pour piocher',
-    main: 'Choisissez votre action principale',
-    secondary: 'Action bonus disponible',
+    main: `Phase Principale — ${apLeft}/${maxAP} AP disponible${apLeft !== 1 ? 's' : ''}`,
     resolution: 'Phase de résolution',
     end: 'Fin du tour',
   };
@@ -229,7 +298,7 @@ export default function App() {
         </div>
 
         {/* ── CENTER COLUMN — game board ─────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col">
 
           {/* ── OPPONENT AREA (top) ─────────────────────────── */}
           <div className="border-b border-cyber-border/20 px-4 py-3 bg-gradient-to-b from-red-950/10 to-transparent">
@@ -275,6 +344,7 @@ export default function App() {
                   <ProjectCard
                     projet={projet}
                     isOpponent
+                    isShielded={!!(opponent.immuniteActive || opponent.annuleMalusProtected)}
                     isDropTarget={dropTargetId === projet.id}
                     animationHint={atoutTargetId === projet.id ? 'atout' : undefined}
                     onClick={() => handleProjectClick(projet, true)}
@@ -288,15 +358,29 @@ export default function App() {
           <div className="flex items-center gap-3 px-4 py-2 bg-cyber-surface/50 border-b border-cyber-border/20">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-cyber-border to-transparent" />
 
-            {/* Phase instruction */}
-            <motion.p
-              key={game.phase}
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-xs text-slate-400 px-3"
-            >
-              {phaseLabel[game.phase]}
-            </motion.p>
+            {/* Phase instruction + AP indicator */}
+            <div className="flex items-center gap-2 px-3">
+              <motion.p
+                key={game.phase + apUsed}
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs text-slate-400"
+              >
+                {phaseLabel[game.phase]}
+              </motion.p>
+              {game.phase === 'main' && !isAITurn && (
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: maxAP }, (_, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ opacity: i < apUsed ? 0.25 : 1 }}
+                      className={`w-2 h-2 rounded-full ${i < apUsed ? 'bg-slate-600' : 'bg-cyber-cyan'}`}
+                      style={{ boxShadow: i < apUsed ? 'none' : '0 0 6px rgba(0,212,255,0.8)' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Action buttons */}
             <div className="flex gap-2">
@@ -335,18 +419,7 @@ export default function App() {
                 </motion.button>
               )}
 
-              {game.phase === 'secondary' && !isAITurn && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleSkipToResolution}
-                  className="px-4 py-1.5 text-xs rounded-xl border border-slate-600/50 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-all"
-                >
-                  Passer le bonus
-                </motion.button>
-              )}
-
-              {(game.phase === 'resolution' || game.phase === 'secondary') && !isAITurn && (
+              {(game.phase === 'main' || game.phase === 'resolution') && !isAITurn && !proofSelectionPending && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -362,7 +435,11 @@ export default function App() {
           </div>
 
           {/* ── ACTIVE PLAYER BOARD (bottom-center) ─────────── */}
-          <div className="flex-1 flex flex-col px-4 py-3 bg-gradient-to-t from-cyber-cyan/5 to-transparent overflow-hidden">
+          <div
+            className="flex-1 flex flex-col px-4 py-3 bg-gradient-to-t from-cyber-cyan/5 to-transparent overflow-hidden"
+            onDragOver={handleDragOverBoard}
+            onDrop={handleDropVoid}
+          >
             {/* Player header */}
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 rounded-xl bg-cyber-cyan/20 border border-cyber-cyan/30 flex items-center justify-center text-sm">
@@ -382,7 +459,7 @@ export default function App() {
                   <p className="text-[9px] text-slate-500">projets</p>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-300 font-mono">{activePlayer.main.length}/5</p>
+                  <p className="text-sm font-bold text-slate-300 font-mono">{activePlayer.main.length}/10</p>
                   <p className="text-[9px] text-slate-500">main</p>
                 </div>
               </div>
@@ -404,6 +481,8 @@ export default function App() {
                   <ProjectCard
                     projet={projet}
                     isSelected={selectedProjectId === projet.id}
+                    isShielded={!!(activePlayer.immuniteActive || activePlayer.annuleMalusProtected)}
+                    isMainPhaseActive={canAct}
                     isDropTarget={dropTargetId === projet.id}
                     animationHint={atoutTargetId === projet.id ? 'atout' : undefined}
                     onClick={() => handleProjectClick(projet, false)}
@@ -439,7 +518,7 @@ export default function App() {
             </div>
 
             <AnimatePresence mode="popLayout">
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 pb-1">
                 {activePlayer.main.length === 0 && (
                   <p className="text-slate-600 text-xs italic py-3">Piochez des cartes pour commencer</p>
                 )}
@@ -450,6 +529,7 @@ export default function App() {
                     isSelected={selectedCardId === card.id}
                     isPlayable={canAct}
                     onClick={() => handleCardClick(card)}
+                    onDoubleClick={() => handleCardDoubleClick(card)}
                     onDragStart={handleDragStart(card)}
                     onDragEnd={handleDragEnd}
                   />
@@ -503,40 +583,82 @@ export default function App() {
                 className="rounded-2xl border border-cyber-cyan/30 bg-cyber-cyan/5 p-3"
               >
                 <p className="text-[9px] uppercase tracking-widest text-cyber-cyan mb-1">Carte sélectionnée</p>
-                <p className="text-xs font-bold text-white">{selectedCard.nom}</p>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  {'description' in selectedCard ? (selectedCard as AtoutCard).description : 'Attachez à un projet'}
+                <p className="text-sm font-bold text-white leading-tight">{selectedCard.nom}</p>
+                <p className="text-sm text-slate-300 mt-2 leading-relaxed">
+                  {'description' in selectedCard
+                    ? (selectedCard as AtoutCard).description
+                    : 'Preuve de conformité — attachez à un projet pour réduire son risque.'}
                 </p>
-                <button
-                  onClick={() => {
-                    if (selectedCard.type === 'Atout') playAtoutWithAnim(selectedCard.id);
-                    setSelectedCardId(null);
-                  }}
-                  className="mt-2 w-full py-1.5 text-[10px] font-bold rounded-lg bg-cyber-cyan/20 text-cyber-cyan hover:bg-cyber-cyan/30 transition-colors border border-cyber-cyan/30"
-                >
-                  Jouer sans cible
-                </button>
+                {canAct && selectedCard.type === 'Atout' && (
+                  <p className="text-[9px] text-slate-600 mt-2 font-mono">
+                    double-clic ou glisser dans le vide pour jouer sans cible
+                  </p>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Chef de Projet */}
+          {activePlayer.chef && (
+            <div className="rounded-2xl border border-cyber-purple/40 bg-cyber-purple/5 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-cyber-purple mb-2">Chef de Projet</p>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-cyber-purple/15 border border-cyber-purple/30 flex items-center justify-center text-sm flex-shrink-0">
+                  {activePlayer.chef.id === 'c1' ? '⚡' : activePlayer.chef.id === 'c2' ? '📋' : '💥'}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white truncate">{activePlayer.chef.nom}</p>
+                  <p className="text-[9px] text-cyber-purple font-mono leading-tight">
+                    {activePlayer.chef.id === 'c1' ? `Tour pair : +1 AP${game.tour % 2 === 0 ? ' ✓ ACTIF' : ''}` :
+                     activePlayer.chef.id === 'c2' ? '+2 pts sur GO' :
+                     'Atouts illimités (1 AP)'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Turn actions status */}
           <div className="rounded-2xl border border-cyber-border bg-cyber-surface p-3 mt-auto">
             <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Ce tour</p>
             {[
-              { label: 'Action principale', done: activePlayer.turnActions.mainActionDone },
-              { label: 'Action bonus', done: activePlayer.turnActions.secondaryActionDone },
-              { label: 'Preuve jouée', done: activePlayer.turnActions.preuveJouee },
-              { label: 'Atout joué', done: activePlayer.turnActions.atoutJoue },
+              { label: 'Projet avancé', sub: '1 AP', done: activePlayer.turnActions.projetAvance },
+              { label: 'Atout joué', sub: '1 AP', done: activePlayer.turnActions.atoutJoue },
+              { label: 'Preuve attachée', sub: 'gratuit', done: activePlayer.turnActions.preuveJouee },
             ].map(item => (
               <div key={item.label} className="flex items-center gap-2 mb-1.5">
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.done ? 'bg-cyber-green' : 'bg-slate-700'}`} />
-                <span className={`text-[9px] ${item.done ? 'text-slate-500 line-through' : 'text-slate-400'}`}>{item.label}</span>
+                <span className={`text-[9px] flex-1 ${item.done ? 'text-slate-500 line-through' : 'text-slate-400'}`}>{item.label}</span>
+                <span className="text-[8px] text-slate-600 font-mono">{item.sub}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* ── Proof selection modal ────────────────────────────── */}
+      {!activePlayer.isAI && (
+        <ProofSelectionModal
+          selection={game.pendingProofSelection}
+          activeProjectNeeds={activeProjectNeeds}
+          onSelect={game.selectProofFromPool}
+          onSkip={game.skipProofSelection}
+        />
+      )}
+
+      {/* ── Reaction window (trap card style) ────────────────── */}
+      <ReactionWindow
+        window={game.pendingReactionWindow}
+        joueurs={game.joueurs}
+        onPlayReaction={game.playReactionCard}
+        onPass={game.passReaction}
+      />
+
+      {/* ── Phase banner (Yu-Gi-Oh Master Duel style) ─────────── */}
+      <PhaseBanner phase={bannerPhase} />
+
+      {/* ── Card play animation (Hearthstone style) ──────────── */}
+      <CardPlayAnimation card={playingCard} />
 
       {/* ── Modals ────────────────────────────────────────────── */}
       <RulesModal open={showRules} onClose={() => setShowRules(false)} />
