@@ -145,9 +145,9 @@ export const atoutDeck: AtoutCard[] = [
   { id: 'bl10', type: 'Atout', subtype: 'bluff', exemplaires: 1, nom: 'Documentation vide',         description: "Un projet adverse recule d'une étape.",                        effet: 'recule',       image: '' },
 
   // ─── POLITIQUE (1 exemplaire chacun) ────────────────────────────────────────
-  { id: 'po1',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Escalade N+2',            description: 'Annule le prochain atout négatif joué contre vous.',           effet: 'annuleMalus',  image: '' },
-  { id: 'po2',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Échange SameTime',        description: "Échangez une carte atout aléatoire avec l'adversaire.",         effet: 'echangeAtout', image: '' },
-  { id: 'po3',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Accord politique',        description: 'Protège contre tout malus ce tour.',                            effet: 'annuleMalus',  image: '' },
+  { id: 'po1',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Escalade N+2',            description: 'Annule le prochain atout négatif joué contre vous.',           effet: 'annuleMalus',  image: 'public/images/escalade_N+2.png' },
+  { id: 'po2',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Échange SameTime',        description: "Échangez une carte atout aléatoire avec l'adversaire.",         effet: 'echangeAtout', image: 'public/images/echange_sametimes.png' },
+  { id: 'po3',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Accord politique',        description: 'Protège contre tout malus ce tour.',                            effet: 'annuleMalus',  image: 'public/images/accord_politique.png' },
   { id: 'po4',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Catégorisation express',  description: "Tous les projets S0/S1 avancent d'une étape.",                  effet: 'avancePetits', image: '' },
   { id: 'po5',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: "Changement d'objectif",   description: "Tous les projets S3 reculent d'une étape.",                     effet: 'reculeGrands', image: '' },
   { id: 'po6',  type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Recette du bled',         description: "Un adversaire ne peut pas jouer d'atout son prochain tour.",    effet: 'bloque',       image: '' },
@@ -157,14 +157,14 @@ export const atoutDeck: AtoutCard[] = [
   { id: 'po10', type: 'Atout', subtype: 'politique', exemplaires: 1, nom: 'Réserve PACS',            description: "Jouez 2 cartes d'un coup ce tour.",                             effet: 'doubleCarte',  image: '' },
 
   // ─── RISQUE (1 exemplaire chacun) ───────────────────────────────────────────
-  { id: 'ri1', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Tentative GO anticipé',    description: 'Tentez le GO immédiatement (50% succès, 50% NO GO).',           effet: 'goAleatoire',     image: '' },
-  { id: 'ri2', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Forçage de jalon',         description: 'Avancez de 2 étapes avec un risque accru (+25).',               effet: 'avanceRisque',    image: '' },
-  { id: 'ri3', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Confiance SSI',            description: 'Avancez de 2 étapes mais le risque augmente fortement.',        effet: 'avanceRisque',    image: '' },
-  { id: 'ri4', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Livraison avant recette',  description: 'Finalisez immédiatement (30% GO / 70% NO GO).',                 effet: 'finalisAleatoire',image: '' },
-  { id: 'ri5', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Recatégorisation',         description: 'Transformez un projet S2 en S1 (seuil de risque augmenté).',    effet: 'recategorise',    image: '' },
-  { id: 'ri6', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Choix PMO',                description: 'Avancez de 2 étapes sur un projet au choix.',                   effet: 'avance2',         image: '' },
-  { id: 'ri7', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Raccourci dangereux',      description: 'Avancez de 2 étapes avec risque accru (+20).',                   effet: 'avanceRisque',    image: '' },
-  { id: 'ri8', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Compression des délais',   description: 'Un projet avance de 3 étapes mais le risque augmente de 20.',   effet: 'rushSansPreuve',  image: '' },
+  { id: 'ri1', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Tentative GO anticipé',    description: 'Tentez le GO immédiatement (50% succès, 50% NO GO).',           effet: 'goAleatoire',     image: 'public/images/tentative_go_anticipe.png' },
+  { id: 'ri2', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Forçage de jalon',         description: 'Avancez de 2 étapes avec un risque accru (+25).',               effet: 'avanceRisque',    image: 'public/images/forcage_de_jalon.png' },
+  { id: 'ri3', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Confiance SSI',            description: 'Avancez de 2 étapes mais le risque augmente fortement.',        effet: 'avanceRisque',    image: 'public/images/confiance_ssi.png' },
+  { id: 'ri4', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Livraison avant recette',  description: 'Finalisez immédiatement (30% GO / 70% NO GO).',                 effet: 'finalisAleatoire',image: 'public/images/livraison_avant_recette.png' },
+  { id: 'ri5', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Recatégorisation',         description: 'Transformez un projet S2 en S1 (seuil de risque augmenté).',    effet: 'recategorise',    image: 'public/images/recategorisation.png' },
+  { id: 'ri6', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Choix PMO',                description: 'Avancez de 2 étapes sur un projet au choix.',                   effet: 'avance2',         image: 'public/images/choix_PMO.png' },
+  { id: 'ri7', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Raccourci dangereux',      description: 'Avancez de 2 étapes avec risque accru (+20).',                   effet: 'avanceRisque',    image: 'public/images/raccourci_dangereux.png' },
+  { id: 'ri8', type: 'Atout', subtype: 'risque', exemplaires: 1, nom: 'Compression des délais',   description: 'Un projet avance de 3 étapes mais le risque augmente de 20.',   effet: 'rushSansPreuve',  image: 'public/images/compression_des_delais.png' },
 
   // ─── RÉACTION (1 exemplaire chacun) ─────────────────────────────────────────
   { id: 're1', type: 'Atout', subtype: 'reaction', exemplaires: 1, nom: 'Management par IA',          description: 'Renvoie un atout adverse à son expéditeur (annule le dernier malus).', effet: 'annuleMalus',  image: 'public/images/management_ia.png' },
