@@ -16,7 +16,7 @@ const ATOUT_CONFIG: Record<AtoutSubtype, ArtConfig> = {
   bluff:     { border: 'border-orange-500/60', glow: 'shadow-[0_0_28px_rgba(249,115,22,0.55)]',  badge: 'bg-orange-900/60 text-orange-300', icon: '🃏', art: { from: '#1c1008', to: '#0a0602', accent: '#f97316' } },
   politique: { border: 'border-yellow-400/60', glow: 'shadow-[0_0_28px_rgba(250,204,21,0.45)]',  badge: 'bg-yellow-900/60 text-yellow-300', icon: '🏛️', art: { from: '#1c1808', to: '#0a0a02', accent: '#facc15' } },
   risque:    { border: 'border-purple-500/60', glow: 'shadow-[0_0_28px_rgba(139,92,246,0.55)]',  badge: 'bg-purple-900/60 text-purple-300', icon: '⚠️', art: { from: '#100818', to: '#05020a', accent: '#8b5cf6' } },
-  reaction:  { border: 'border-emerald-400/60',glow: 'shadow-[0_0_28px_rgba(0,255,136,0.45)]',  badge: 'bg-emerald-900/60 text-emerald-300',icon: '⚡', art: { from: '#081c10', to: '#020a06', accent: '#00ff88' } },
+  reaction:  { border: 'border-gray-500/60',   glow: 'shadow-[0_0_28px_rgba(100,116,139,0.6)]', badge: 'bg-gray-900/60 text-gray-300',      icon: '⚡', art: { from: '#0d0d0d', to: '#050505', accent: '#6b7280' } },
 };
 
 const PREUVE_CONFIG: ArtConfig = {
@@ -35,20 +35,26 @@ type Props = {
   onDoubleClick?: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
+  onDrag?: (e: React.DragEvent) => void;
+  onZoom?: (card: Card) => void;
 };
 
-export default function HandCard({ card, isSelected, isPlayable = true, onClick, onDoubleClick, onDragStart, onDragEnd }: Props) {
+export default function HandCard({ card, isSelected, isPlayable = true, onClick, onDoubleClick, onDragStart, onDragEnd, onDrag, onZoom }: Props) {
   const [hovered, setHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const isAtout = card.type === 'Atout';
   const isPreuve = card.type === 'Preuve';
   const atout = isAtout ? (card as AtoutCard) : null;
   const preuve = isPreuve ? (card as PreuveCard) : null;
 
   const cfg = isAtout && atout ? ATOUT_CONFIG[atout.subtype] : PREUVE_CONFIG;
-  const cardImage = (card as any).image as string | undefined;
+  const cardImage = ((card as any).image as string | undefined) || undefined;
   const icon = isAtout && atout ? cfg.icon : (preuve?.icon ?? '📋');
   const isExpanded = hovered && isPlayable;
   const isActive = isSelected || isExpanded;
+
+  const handleDragStart = (e: React.DragEvent) => { setIsDragging(true); onDragStart(e); };
+  const handleDragEnd = () => { setIsDragging(false); onDragEnd(); };
 
   return (
     // Outer wrapper: fixed 126×174 slot in flex layout; carries HTML5 drag events
@@ -59,7 +65,9 @@ export default function HandCard({ card, isSelected, isPlayable = true, onClick,
       exit={{ opacity: 0, y: 50, scale: 0.7 }}
       transition={{ type: 'spring', stiffness: 320, damping: 22 }}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {...({ draggable: isPlayable, onDragStart, onDragEnd } as any)}
+      {...({ draggable: isPlayable, onDragStart: handleDragStart, onDragEnd: handleDragEnd, onDrag } as any)}
+      data-card-id={card.id}
+      onContextMenu={(e: React.MouseEvent) => { e.preventDefault(); onZoom?.(card); }}
       className="relative flex-shrink-0"
       style={{ width: 126, height: 174 }}
     >
@@ -67,7 +75,6 @@ export default function HandCard({ card, isSelected, isPlayable = true, onClick,
       <motion.div
         animate={{
           opacity: isPlayable ? 1 : 0.4,
-          width: isExpanded ? 200 : 126,
           y: isSelected ? -22 : isExpanded ? -16 : 0,
           scale: isSelected ? 1.07 : 1,
         }}
@@ -108,7 +115,17 @@ export default function HandCard({ card, isSelected, isPlayable = true, onClick,
             background: `radial-gradient(ellipse at 50% 30%, ${cfg.art.from}cc, ${cfg.art.to})`,
           }}
         >
-          {cardImage ? (
+          {isDragging ? (
+            <div className="w-full h-full flex items-center justify-center relative">
+              <motion.span
+                className="text-4xl relative z-10 drop-shadow-lg"
+                animate={{ scale: [1, 1.12, 1] }}
+                transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                {icon}
+              </motion.span>
+            </div>
+          ) : cardImage ? (
             <img src={cardImage} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center relative">

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { GameState, Player, ProjetCard, PreuveCard, AtoutCard, TurnActions, HistoryEntry, ConformityResult } from './types';
+import type { GameState, Player, ProjetCard, PreuveCard, AtoutCard, TurnActions, HistoryEntry, ConformityResult, GameSetupConfig, GameStats } from './types';
 import { shuffle, cloneProjet, buildPreuvePile, buildAtoutPile, projetDeck, evenementDeck, preuveDeck, chefsDeProjets } from './data';
+import { computeAIReactionDecision } from './ai';
 
 const emptyActions = (): TurnActions => ({
   mainActionDone: false,
@@ -15,16 +16,55 @@ function drawCards<T>(pile: T[], n = 1): { drawn: T[]; remaining: T[] } {
   return { drawn: pile.slice(0, n), remaining: pile.slice(n) };
 }
 
-function makeInitialState(): GameState {
+function makeInitialState(config?: GameSetupConfig): GameState {
   const allProjets = shuffle(projetDeck.map(cloneProjet));
   const pilePreuve = buildPreuvePile();
-  const pileAtout = buildAtoutPile();
   const pileEvenement = shuffle(evenementDeck.map(e => ({ ...e })));
+
+  const mode = config?.mode ?? 'vs_ai';
+  const difficulty = config?.difficulty ?? 'medium';
+  const p1Name = config?.player1Name ?? 'Joueur 1';
+  const p2Name = config?.player2Name ?? (mode === 'hotseat' ? 'Joueur 2' : 'Ordinateur');
+
+  // Build atout pile, removing any cards selected for custom decks
+  const selectedIds = new Set([
+    ...(config?.customAtoutsP1 ?? []).map(c => c.id),
+    ...(config?.customAtoutsP2 ?? []).map(c => c.id),
+  ]);
+  const fullAtoutPile = buildAtoutPile().filter(c => !selectedIds.has(c.id));
+  const pileAtout = fullAtoutPile;
 
   const shuffledChefs = shuffle([...chefsDeProjets]);
   const players: Player[] = [
-    { id: 1, nom: 'Joueur 1', score: 0, main: [], projets: [], turnActions: emptyActions(), skippedTurns: 0, chef: shuffledChefs[0] },
-    { id: 2, nom: 'Ordinateur', score: 0, main: [], projets: [], turnActions: emptyActions(), skippedTurns: 0, isAI: true, chef: shuffledChefs[1] },
+    {
+      id: 1,
+      nom: p1Name,
+      score: 0,
+      main: config?.customAtoutsP1 ? [...config.customAtoutsP1] : [],
+      projets: [],
+      turnActions: emptyActions(),
+      skippedTurns: 0,
+      chef: shuffledChefs[0],
+      totalAtoutsJoues: 0,
+      totalPreuvesJouees: 0,
+      projetsGO: 0,
+      projetsNoGo: 0,
+    },
+    {
+      id: 2,
+      nom: p2Name,
+      score: 0,
+      main: config?.customAtoutsP2 ? [...config.customAtoutsP2] : [],
+      projets: [],
+      turnActions: emptyActions(),
+      skippedTurns: 0,
+      isAI: mode === 'vs_ai',
+      chef: shuffledChefs[1],
+      totalAtoutsJoues: 0,
+      totalPreuvesJouees: 0,
+      projetsGO: 0,
+      projetsNoGo: 0,
+    },
   ];
 
   const offerCount = Math.min(3, allProjets.length);
@@ -41,7 +81,7 @@ function makeInitialState(): GameState {
     pilePreuve,
     pileAtout,
     pileEvenement,
-    historique: [{ tour: 0, message: 'Partie lancée — Joueur 1, choisissez votre premier projet !', type: 'system' }],
+    historique: [{ tour: 0, message: `Partie lancée — ${p1Name}, choisissez votre premier projet !`, type: 'system' }],
     activeEvent: null,
     winner: null,
     animatingEvent: false,
@@ -51,6 +91,11 @@ function makeInitialState(): GameState {
     pendingReactionWindow: null,
     defaussePreuve: [],
     pendingProofSelection: null,
+    gameMode: mode,
+    aiDifficulty: difficulty,
+    gameStats: null,
+    hotSeatTransitionPending: false,
+    startTime: Date.now(),
   };
 }
 
@@ -74,18 +119,44 @@ function reshufflePreuveIfNeeded(state: GameState) {
   }
 }
 
+function buildGameStats(state: GameState, winner: string): GameStats {
+  return {
+    startTime: state.startTime,
+    endTime: Date.now(),
+    totalTurns: state.tour,
+    scores: state.joueurs.map(p => ({
+      nom: p.nom,
+      score: p.score,
+      projetsGO: p.projetsGO,
+      projetsNoGo: p.projetsNoGo,
+      atoutsJoues: p.totalAtoutsJoues,
+      preuvesJouees: p.totalPreuvesJouees,
+    })),
+  };
+}
+
 function checkWinner(state: GameState): string | null {
   for (const p of state.joueurs) {
-    if (p.score >= 10) return `${p.nom} gagne avec ${p.score} points !`;
+    if (p.score >= 10) {
+      const msg = `${p.nom} gagne avec ${p.score} points !`;
+      if (!state.gameStats) state.gameStats = buildGameStats(state, msg);
+      return msg;
+    }
     const s3Completed = p.projets.filter(pr => pr.criticite === 'S3' && pr.status === 'Terminé').length;
-    if (s3Completed >= 3) return `${p.nom} remporte la victoire — 3 projets S3 complétés !`;
+    if (s3Completed >= 3) {
+      const msg = `${p.nom} remporte la victoire — 3 projets S3 complétés !`;
+      if (!state.gameStats) state.gameStats = buildGameStats(state, msg);
+      return msg;
+    }
   }
   const bothIdle = state.joueurs.every(p =>
     p.projets.every(pr => pr.status === 'Terminé' || pr.status === 'NO GO')
   );
   if (state.tour > state.maxTours || (state.pileProjet.length === 0 && bothIdle && !state.projectDraftOptions)) {
     const best = state.joueurs.reduce((a, b) => b.score > a.score ? b : a);
-    return `${best.nom} gagne avec ${best.score} points (fin de partie) !`;
+    const msg = `${best.nom} gagne avec ${best.score} points (fin de partie) !`;
+    if (!state.gameStats) state.gameStats = buildGameStats(state, msg);
+    return msg;
   }
   return null;
 }
@@ -94,30 +165,6 @@ function getMaxAP(player: Player, tour: number): number {
   return (player.chef?.id === 'c1' && tour % 2 === 0) ? 3 : 2;
 }
 
-const HIDDEN_TRAIT_LABELS: Record<string, string> = {
-  hidden_risk: 'Code Legacy',
-  point_bonus: 'Audit Externe Privé',
-  special_event: 'Shadow IT',
-};
-
-function applyHiddenTrait(projet: ProjetCard, _player: Player, state: GameState) {
-  const label = HIDDEN_TRAIT_LABELS[projet.hiddenTrait!] ?? projet.hiddenTrait;
-  switch (projet.hiddenTrait) {
-    case 'hidden_risk':
-      projet.riskLevel = Math.min(projet.riskLevel + 15, 100);
-      addLog(state, `⚠ Trait révélé — ${label} sur "${projet.nom}" : risque +15 !`, 'event');
-      break;
-    case 'point_bonus':
-      addLog(state, `✨ Trait révélé — ${label} sur "${projet.nom}" : +1 pt si validé GO !`, 'event');
-      break;
-    case 'special_event':
-      if (!projet.preuvesRequises.includes('Documentation')) {
-        projet.preuvesRequises.push('Documentation');
-      }
-      addLog(state, `📋 Trait révélé — ${label} sur "${projet.nom}" : preuve "Documentation" désormais requise !`, 'event');
-      break;
-  }
-}
 
 function tryCompleteProjet(projet: ProjetCard, _player: Player, state: GameState) {
   if (projet.currentStep >= projet.etapes.length && projet.status === 'En cours') {
@@ -134,7 +181,6 @@ function checkForReview(projet: ProjetCard, state: GameState) {
   const allProofs = projet.preuvesRequises.length === 0 ||
     projet.preuvesRequises.every(r => projet.preuvesAttachees.includes(r));
 
-  // All proofs attached → always GO (proofs override risk level)
   const result: ConformityResult = allProofs ? 'GO' : highRisk ? 'NO GO' : 'GO_RESERVES';
   state.pendingConformityReview = { projetId: projet.id, nom: projet.nom, result, valeur: projet.valeur };
 }
@@ -246,6 +292,54 @@ function applyOffensiveEffect(
   }
 }
 
+// Apply AI reaction card effect (mirrors playReactionCard logic)
+function applyAIReactionEffect(
+  reactionCard: AtoutCard,
+  victim: Player,
+  attacker: Player,
+  pw: { atoutEffet: string; atoutNom: string; targetProjetId?: string },
+  state: GameState
+) {
+  addLog(state, `⚡ CARTE PIÈGE ! ${victim.nom} active "${reactionCard.nom}" — l'attaque "${pw.atoutNom}" est annulée !`, 'event');
+  switch (reactionCard.effet) {
+    case 'immunite':
+      victim.immuniteActive = true;
+      addLog(state, `${victim.nom} → bouclier actif jusqu'au prochain tour.`, 'action');
+      break;
+    case 'annuleMalus': {
+      victim.annuleMalusProtected = true;
+      const targetProjet = pw.targetProjetId
+        ? attacker.projets.find(p => p.id === pw.targetProjetId) || undefined
+        : undefined;
+      applyOffensiveEffect(pw.atoutEffet, pw.atoutNom, victim, attacker, targetProjet, state);
+      addLog(state, `🔄 L'attaque est renvoyée à ${attacker.nom} !`, 'event');
+      break;
+    }
+    case 'retirage': {
+      const noGoProj = victim.projets.find(p => p.status === 'NO GO');
+      if (noGoProj) {
+        noGoProj.status = 'En cours';
+        noGoProj.riskLevel = Math.max(0, noGoProj.riskLevel - 20);
+        addLog(state, `${victim.nom} → "${noGoProj.nom}" relancé.`, 'action');
+      }
+      break;
+    }
+    case 'annuleEvent':
+      state.activeEvent = null;
+      state.animatingEvent = false;
+      addLog(state, `${victim.nom} → événement global annulé !`, 'action');
+      break;
+    case 'reduceRisk': {
+      const riskyProj = [...victim.projets].sort((a, b) => b.riskLevel - a.riskLevel)[0];
+      if (riskyProj) riskyProj.riskLevel = Math.max(0, riskyProj.riskLevel - 30);
+      addLog(state, `${victim.nom} → risque réduit sur son projet le plus exposé.`, 'action');
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 type GameStore = GameState & {
   drawPhase: () => void;
   selectDraftProject: (projetId: string) => void;
@@ -256,11 +350,12 @@ type GameStore = GameState & {
   playReactionCard: (cardId: string) => void;
   passReaction: () => void;
   endTurn: () => void;
+  confirmHotSeat: () => void;
   discardCard: (cardId: string) => void;
   confirmReview: () => void;
   selectProofFromPool: (cardId: string) => void;
   skipProofSelection: () => void;
-  newGame: () => void;
+  newGame: (config?: GameSetupConfig) => void;
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -338,7 +433,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   skipToSecondary() {
-    // Phases main/secondary fusionnées — action conservée pour compatibilité IA, sans effet
+    // Phases main/secondary fusionnées — conservé pour compatibilité IA
   },
 
   advanceProject(projetId) {
@@ -351,9 +446,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.phase !== 'main') return;
     if (player.turnActions.projetAvance) return;
 
-    // AP guard: Chef Chaos peut avoir dépensé tous ses AP en atouts
     const advMaxAP = getMaxAP(player, state.tour);
-    const advApUsed = player.turnActions.atoutsJoues; // projetAvance is false here
+    const advApUsed = player.turnActions.atoutsJoues;
     if (advApUsed >= advMaxAP) {
       addLog(state, 'Plus d\'AP disponibles ce tour.', 'system');
       set(state); return;
@@ -371,12 +465,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     projet.currentStep += 1;
     projet.riskLevel = Math.min(projet.riskLevel + 8, 100);
 
-    // Révèle le trait caché à l'étape 3
-    if (projet.currentStep === 3 && projet.hiddenTrait && !projet.hiddenTraitRevealed) {
-      projet.hiddenTraitRevealed = true;
-      applyHiddenTrait(projet, player, state);
-    }
-
     if (projet.currentStep >= projet.etapes.length) {
       addLog(state, `${player.nom} avance "${projet.nom}" → étape finale, revue en cours...`, 'action');
       checkForReview(projet, state);
@@ -388,7 +476,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       addLog(state, `${player.nom} avance "${projet.nom}" → étape ${projet.currentStep}/${projet.etapes.length}.`, 'action');
     }
 
-    // 1 AP consommé — le joueur reste en phase main pour utiliser l'AP restant
     player.turnActions = { ...player.turnActions, projetAvance: true, mainActionDone: true };
 
     state.winner = checkWinner(state);
@@ -419,14 +506,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     projet.preuvesAttachees.push(card.nom);
     projet.riskLevel = Math.max(0, projet.riskLevel - 10);
     player.main.splice(cardIdx, 1);
+    player.totalPreuvesJouees += 1;
     addLog(state, `${player.nom} attache "${card.nom}" à "${projet.nom}".`, 'action');
 
-    // If project already at last step, trigger conformity review (will be GO if all proofs now attached)
     if (projet.currentStep >= projet.etapes.length) {
       checkForReview(projet, state);
     }
 
-    // Preuve gratuite (0 AP) — reste en phase main
     player.turnActions = { ...player.turnActions, preuveJouee: true };
 
     state.winner = checkWinner(state);
@@ -440,7 +526,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const player = state.joueurs[state.currentPlayer];
     const opponent = state.joueurs[(state.currentPlayer + 1) % 2];
 
-    // AP guard : chaque atout coûte 1 AP ; c3 et c1 (tour pair) peuvent jouer plusieurs atouts
     const atMaxAP = getMaxAP(player, state.tour);
     const atApUsed = (player.turnActions.projetAvance ? 1 : 0) + player.turnActions.atoutsJoues;
     const multiAtoutAllowed = player.chef?.id === 'c3' || (player.chef?.id === 'c1' && state.tour % 2 === 0);
@@ -470,6 +555,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
       const consumeAndReturn = () => {
         player.main.splice(cardIdx, 1);
+        player.totalAtoutsJoues += 1;
         consumeAtoutAP();
         state.winner = checkWinner(state);
         set(state);
@@ -484,10 +570,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         addLog(state, `${opponent.nom} annule le malus "${atout.nom}" !`, 'event');
         consumeAndReturn(); return;
       }
-      // If victim is a human player with reaction cards → open reaction window
-      const victimReactions = opponent.main.filter(c => c.type === 'Atout' && (c as AtoutCard).subtype === 'reaction');
+      // Human victim with reaction cards → open reaction window
+      const victimReactions = opponent.main.filter(c => c.type === 'Atout' && (c as AtoutCard).subtype === 'reaction') as AtoutCard[];
       if (!opponent.isAI && victimReactions.length > 0) {
         player.main.splice(cardIdx, 1);
+        player.totalAtoutsJoues += 1;
         consumeAtoutAP();
         state.pendingReactionWindow = {
           victimIdx: (state.currentPlayer + 1) % 2,
@@ -501,13 +588,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set(state);
         return;
       }
+      // AI victim: decide whether to react based on difficulty
+      if (opponent.isAI && victimReactions.length > 0) {
+        const reactionCard = computeAIReactionDecision(state.aiDifficulty, atout.effet, victimReactions);
+        if (reactionCard) {
+          player.main.splice(cardIdx, 1);
+          player.totalAtoutsJoues += 1;
+          consumeAtoutAP();
+          opponent.main = opponent.main.filter(c => c.id !== reactionCard.id);
+          applyAIReactionEffect(reactionCard, opponent, player, {
+            atoutEffet: atout.effet,
+            atoutNom: atout.nom,
+            targetProjetId,
+          }, state);
+          state.winner = checkWinner(state);
+          set(state);
+          return;
+        }
+      }
     }
 
     let extraAtoutAllowed = false;
 
     switch (atout.effet) {
-
-      // ── Effets existants ───────────────────────────────────────────────────
       case 'avance': {
         const proj = targetProjet || player.projets.find(p => p.status === 'En cours');
         if (!proj) { addLog(state, 'Aucun projet cible.', 'system'); set(state); return; }
@@ -563,7 +666,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       case 'doublePioche': {
         const space = 10 - player.main.length;
         if (space <= 0) { addLog(state, `${player.nom} joue "${atout.nom}" — main pleine.`, 'system'); break; }
-        // Combine pile + défausse pour la sélection stratégique
         const dpPool = [...state.pilePreuve, ...state.defaussePreuve];
         if (!dpPool.length) { addLog(state, `${player.nom} joue "${atout.nom}" — aucune preuve disponible.`, 'system'); break; }
         state.pilePreuve = [];
@@ -572,8 +674,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         addLog(state, `${player.nom} joue "${atout.nom}" — choisissez jusqu'à ${Math.min(2, space)} preuve(s).`, 'action');
         break;
       }
-
-      // ── Nouveaux effets ────────────────────────────────────────────────────
       case 'avance2': {
         const proj = targetProjet || player.projets.find(p => p.status === 'En cours');
         if (!proj) { addLog(state, 'Aucun projet cible.', 'system'); set(state); return; }
@@ -807,7 +907,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     player.main.splice(cardIdx, 1);
-    // doubleCarte : gratuit pour les chefs multi-atout (déjà couverts), reset le slot sinon
+    player.totalAtoutsJoues += 1;
+
     if (extraAtoutAllowed && !multiAtoutAllowed) {
       player.turnActions = { ...player.turnActions, atoutJoue: false };
     } else if (!extraAtoutAllowed) {
@@ -835,24 +936,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     addLog(state, `⚡ CARTE PIÈGE ! ${victim.nom} active "${reactionCard.nom}" — l'attaque "${pw.atoutNom}" est annulée !`, 'event');
 
-    // Apply the reaction card's own defensive effect as a bonus
     switch (reactionCard.effet) {
       case 'immunite':
         victim.immuniteActive = true;
         addLog(state, `${victim.nom} → bouclier actif jusqu'au prochain tour.`, 'action');
         break;
-      case 'annuleMalus':
+      case 'annuleMalus': {
         victim.annuleMalusProtected = true;
-        addLog(state, `${victim.nom} → protection contre le prochain malus activée.`, 'action');
-        // Renvoi : redirect the attack to the attacker
-        {
-          const targetProjet = pw.targetProjetId
-            ? attacker.projets.find(p => p.id === pw.targetProjetId) || undefined
-            : undefined;
-          applyOffensiveEffect(pw.atoutEffet, pw.atoutNom, victim, attacker, targetProjet, state);
-          addLog(state, `🔄 L'attaque est renvoyée à ${attacker.nom} !`, 'event');
-        }
+        const targetProjet = pw.targetProjetId
+          ? attacker.projets.find(p => p.id === pw.targetProjetId) || undefined
+          : undefined;
+        applyOffensiveEffect(pw.atoutEffet, pw.atoutNom, victim, attacker, targetProjet, state);
+        addLog(state, `🔄 L'attaque est renvoyée à ${attacker.nom} !`, 'event');
         break;
+      }
       case 'retirage': {
         const noGoProj = victim.projets.find(p => p.status === 'NO GO');
         if (noGoProj) {
@@ -953,12 +1050,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state.joueurs[nextPlayer].skippedTurns--;
       state.phase = 'resolution';
       state.joueurs[nextPlayer].turnActions = {
-        mainActionDone: true,
-        secondaryActionDone: true,
-        preuveJouee: true,
-        atoutJoue: true,
-        projetAvance: true,
-        atoutsJoues: 0,
+        mainActionDone: true, secondaryActionDone: true,
+        preuveJouee: true, atoutJoue: true, projetAvance: true, atoutsJoues: 0,
       };
       addLog(state, `${state.joueurs[nextPlayer].nom} passe son tour (effet en cours) !`, 'event');
     } else {
@@ -967,8 +1060,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       addLog(state, `Tour ${state.tour} — ${state.joueurs[nextPlayer].nom} joue.`, 'system');
     }
 
+    // In hotseat mode, show transition screen before revealing next player's board
+    if (state.gameMode === 'hotseat' && !state.joueurs[nextPlayer].isAI) {
+      state.hotSeatTransitionPending = true;
+    }
+
     state.winner = checkWinner(state);
     set(state);
+  },
+
+  confirmHotSeat() {
+    set(s => ({ ...s, hotSeatTransitionPending: false }));
   },
 
   confirmReview() {
@@ -989,11 +1091,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         foundProjet.status = 'Terminé';
         let pts = foundProjet.valeur;
         const bonuses: string[] = [];
-        // c2 — Chef Strict : +2 pts sur GO
         if (foundPlayer.chef?.id === 'c2') { pts += 2; bonuses.push('Chef Strict +2'); }
-        // Trait Audit Externe Privé : +1 pt si révélé
-        if (foundProjet.hiddenTrait === 'point_bonus' && foundProjet.hiddenTraitRevealed) { pts += 1; bonuses.push('Audit Privé +1'); }
-        foundPlayer.score += pts;
+foundPlayer.score += pts;
+        foundPlayer.projetsGO += 1;
         recycleProofs(foundProjet, state);
         const bonusStr = bonuses.length ? ` [${bonuses.join(', ')}]` : '';
         addLog(state, `"${review.nom}" — GO ! Projet validé (+${pts} pts)${bonusStr}.`, 'score');
@@ -1001,10 +1101,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const pts = Math.max(1, Math.floor(foundProjet.valeur / 2));
         foundProjet.status = 'Terminé';
         foundPlayer.score += pts;
+        foundPlayer.projetsGO += 1;
         recycleProofs(foundProjet, state);
         addLog(state, `"${review.nom}" — GO avec Réserves (+${pts} pts, preuves incomplètes).`, 'score');
       } else {
         foundProjet.status = 'NO GO';
+        foundPlayer.projetsNoGo += 1;
         recycleProofs(foundProjet, state);
         addLog(state, `"${review.nom}" — NO GO ! Projet rejeté par la revue.`, 'event');
       }
@@ -1068,7 +1170,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(state);
   },
 
-  newGame() {
-    set(makeInitialState());
+  newGame(config?: GameSetupConfig) {
+    set(makeInitialState(config));
   },
 }));

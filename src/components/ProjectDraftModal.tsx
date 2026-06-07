@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import type { ProjetCard } from '../types';
 
 const CRIT_STYLE: Record<string, { color: string; border: string; glow: string; badge: string }> = {
@@ -76,6 +76,12 @@ export default function ProjectDraftModal({ options, playerName, onSelect }: Pro
                   'hover:brightness-110',
                 ].join(' ')}
               >
+                {/* Banner image */}
+                <div className="relative -mx-5 -mt-5 mb-3 overflow-hidden rounded-t-2xl" style={{ height: 80 }}>
+                  <img src={projet.image ?? '/images/VPN_deployment.png'} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(10,14,20,0.88))' }} />
+                </div>
+
                 {/* Criticité badge + valeur */}
                 <div className="flex items-center justify-between mb-3">
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${s.badge}`}>

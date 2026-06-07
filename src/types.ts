@@ -1,7 +1,8 @@
 export type Criticite = 'S0' | 'S1' | 'S2' | 'S3';
 export type TurnPhase = 'draw' | 'main' | 'resolution' | 'end';
 export type AtoutSubtype = 'bonus' | 'malus' | 'bluff' | 'politique' | 'risque' | 'reaction';
-export type HiddenTrait = 'hidden_risk' | 'point_bonus' | 'special_event';
+export type GameMode = 'vs_ai' | 'hotseat';
+export type AIDifficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
 export type ProjetCard = {
   id: string;
@@ -18,8 +19,6 @@ export type ProjetCard = {
   blockedTurns: number;
   riskLevel: number;
   maxRisk: number;
-  hiddenTrait?: HiddenTrait;
-  hiddenTraitRevealed?: boolean;
   criticalDecisionMade?: boolean;
   specialEventTriggered?: boolean;
 };
@@ -59,6 +58,7 @@ export type EvenementCard = {
   description: string;
   effet: 'preuveSup' | 'perdTour' | 'verifProjet' | 'gelBudget' | 'increaseRisk';
   severity: 'low' | 'medium' | 'high';
+  image?: string;
 };
 
 export type ChefProjet = {
@@ -76,7 +76,21 @@ export type TurnActions = {
   preuveJouee: boolean;
   atoutJoue: boolean;
   projetAvance: boolean;
-  atoutsJoues: number; // multi-atout tracking (Chef Chaos / Chef Agile bonus)
+  atoutsJoues: number;
+};
+
+export type GameStats = {
+  startTime: number;
+  endTime: number;
+  totalTurns: number;
+  scores: {
+    nom: string;
+    score: number;
+    projetsGO: number;
+    projetsNoGo: number;
+    atoutsJoues: number;
+    preuvesJouees: number;
+  }[];
 };
 
 export type Player = {
@@ -91,9 +105,22 @@ export type Player = {
   isAI?: boolean;
   annuleMalusProtected?: boolean;
   immuniteActive?: boolean;
+  totalAtoutsJoues: number;
+  totalPreuvesJouees: number;
+  projetsGO: number;
+  projetsNoGo: number;
 };
 
 export type ConformityResult = 'GO' | 'NO GO' | 'GO_RESERVES';
+
+export type GameSetupConfig = {
+  mode: GameMode;
+  difficulty: AIDifficulty;
+  player1Name: string;
+  player2Name: string;
+  customAtoutsP1?: AtoutCard[];
+  customAtoutsP2?: AtoutCard[];
+};
 
 export type GameState = {
   joueurs: Player[];
@@ -133,6 +160,11 @@ export type GameState = {
     available: PreuveCard[];
     count: number;
   } | null;
+  gameMode: GameMode;
+  aiDifficulty: AIDifficulty;
+  gameStats: GameStats | null;
+  hotSeatTransitionPending: boolean;
+  startTime: number;
 };
 
 export type HistoryEntry = {

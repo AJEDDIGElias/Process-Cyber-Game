@@ -60,7 +60,7 @@ export default function CardPlayAnimation({ card }: Props) {
       ? ((card as PreuveCard).icon ?? fx.icon)
       : fx.icon;
 
-  const cardImage = (card as any)?.image as string | undefined;
+  const cardImage = ((card as any)?.image as string | undefined) ?? '/images/VPN_deployment.png';
 
   return (
     <AnimatePresence>

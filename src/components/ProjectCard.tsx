@@ -3,12 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjetCard } from '../types';
 import RiskMeter from './RiskMeter';
 
-const TRAIT_CFG: Record<string, { label: string; icon: string; colorClass: string; borderClass: string; bgClass: string }> = {
-  hidden_risk:   { label: 'Code Legacy',       icon: '⚠️', colorClass: 'text-cyber-orange', borderClass: 'border-cyber-orange/40', bgClass: 'bg-cyber-orange/10' },
-  point_bonus:   { label: 'Audit Privé',        icon: '✨', colorClass: 'text-cyber-green',  borderClass: 'border-cyber-green/40',  bgClass: 'bg-cyber-green/10'  },
-  special_event: { label: 'Shadow IT',          icon: '📋', colorClass: 'text-cyber-purple', borderClass: 'border-cyber-purple/40', bgClass: 'bg-cyber-purple/10' },
-};
-
 const CRIT_STYLES: Record<string, { border: string; badge: string; glow: string; label: string }> = {
   S0: { border: 'border-slate-500/50', badge: 'bg-slate-500/20 text-slate-400', glow: '', label: 'Simple' },
   S1: { border: 'border-cyber-yellow/50', badge: 'bg-cyber-yellow/15 text-cyber-yellow', glow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.2)]', label: 'Standard' },
@@ -29,6 +23,7 @@ type Props = {
   isSelected?: boolean;
   isOpponent?: boolean;
   isDropTarget?: boolean;
+  dropTargetType?: 'friendly' | 'hostile' | null;
   isShielded?: boolean;
   isMainPhaseActive?: boolean;
   animationHint?: 'atout';
@@ -40,7 +35,7 @@ type Props = {
 
 type FlashType = 'advance' | 'setback' | 'proof' | 'atout';
 
-export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarget, isShielded, isMainPhaseActive, animationHint, onClick, onDragOver, onDrop, onDragLeave }: Props) {
+export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarget, dropTargetType, isShielded, isMainPhaseActive, animationHint, onClick, onDragOver, onDrop, onDragLeave }: Props) {
   const crit = CRIT_STYLES[projet.criticite];
   const isTermine = projet.status === 'Terminé';
   const isNoGo = projet.status === 'NO GO';
@@ -84,12 +79,13 @@ export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarg
       onDrop={onDrop}
       onDragLeave={onDragLeave}
       className={[
-        'relative rounded-2xl border p-3 cursor-pointer select-none transition-all duration-200',
+        'relative rounded-2xl border overflow-hidden cursor-pointer select-none transition-all duration-200',
         'bg-gradient-to-b from-cyber-panel to-cyber-bg',
         crit.border,
         crit.glow,
         isSelected ? 'ring-2 ring-cyber-cyan shadow-[0_0_20px_rgba(0,212,255,0.3)]' : '',
-        isDropTarget ? 'ring-2 ring-cyber-green shadow-[0_0_20px_rgba(0,255,136,0.4)] scale-105' : '',
+        isDropTarget && dropTargetType === 'hostile' ? 'ring-2 ring-cyber-red shadow-[0_0_24px_rgba(255,59,59,0.55)] scale-105' : '',
+        isDropTarget && dropTargetType !== 'hostile' ? 'ring-2 ring-cyber-green shadow-[0_0_24px_rgba(0,255,136,0.5)] scale-105' : '',
         isTermine ? 'opacity-60 saturate-50' : '',
         isNoGo ? 'border-cyber-red/80' : '',
         isBloque ? 'border-cyber-red/60 hover:shadow-[0_0_22px_rgba(255,59,59,0.45)]' : '',
@@ -97,6 +93,25 @@ export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarg
         isOpponent ? 'opacity-80' : '',
       ].join(' ')}
     >
+      {/* ── Drop target overlay ───────────────────────────────── */}
+      <AnimatePresence>
+        {isDropTarget && (
+          <motion.div
+            key="drop-overlay"
+            className="absolute inset-0 rounded-2xl pointer-events-none z-5"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.3, 0.6, 0.3] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+            style={{
+              background: dropTargetType === 'hostile'
+                ? 'radial-gradient(ellipse at center, rgba(255,59,59,0.18) 0%, transparent 70%)'
+                : 'radial-gradient(ellipse at center, rgba(0,255,136,0.15) 0%, transparent 70%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ── Main phase pulsing white ring ─────────────────────── */}
       {isMainPhaseActive && !isBloque && !isTermine && !isNoGo && (
         <motion.div
@@ -278,106 +293,114 @@ export default function ProjectCard({ projet, isSelected, isOpponent, isDropTarg
         )}
       </AnimatePresence>
 
-      {/* ── Card content ─────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-2 mb-2 mt-1">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded font-mono ${crit.badge}`}>
-              {projet.criticite}
-            </span>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded ${STATUS_BADGE[projet.status] || 'bg-slate-500/20 text-slate-400'}`}>
-              {projet.status}
-            </span>
-          </div>
-          <h3 className="text-white text-xs font-semibold leading-tight truncate">{projet.nom}</h3>
-          {/* Hidden trait badge */}
-          {!isOpponent && projet.hiddenTrait && (
-            projet.hiddenTraitRevealed ? (
-              <div className={`inline-flex items-center gap-1 mt-0.5 text-[8px] px-1.5 py-0.5 rounded border ${TRAIT_CFG[projet.hiddenTrait]?.bgClass} ${TRAIT_CFG[projet.hiddenTrait]?.borderClass} ${TRAIT_CFG[projet.hiddenTrait]?.colorClass}`}>
-                <span>{TRAIT_CFG[projet.hiddenTrait]?.icon}</span>
-                <span>{TRAIT_CFG[projet.hiddenTrait]?.label}</span>
-              </div>
-            ) : (
-              <motion.div
-                className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1.5 py-0.5 rounded border border-slate-600/50 text-slate-500 bg-slate-800/30"
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <span>?</span>
-                <span>Trait caché</span>
-              </motion.div>
-            )
-          )}
-        </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-[10px] text-slate-500">Valeur</p>
-          <p className="text-cyber-cyan font-bold text-sm font-mono">{projet.valeur}pt</p>
-        </div>
-      </div>
+      {/* ── Horizontal layout: image left | info right ───────── */}
+      <div className="flex" style={{ minHeight: 200 }}>
 
-      {/* Progress bar */}
-      <div className="mb-2">
-        <div className="flex justify-between text-[9px] text-slate-500 mb-1">
-          <span className="truncate max-w-[70%]">{currentStepName}</span>
-          <span className="font-mono">{projet.currentStep}/{projet.etapes.length}</span>
-        </div>
-        <div className="h-1.5 bg-cyber-bg rounded-full overflow-hidden border border-cyber-border/40">
-          <motion.div
-            className="h-full bg-gradient-to-r from-cyber-cyan to-cyber-blue"
-            animate={{ width: `${stepPct}%` }}
-            transition={{ duration: 0.5 }}
+        {/* Left: image — 38% */}
+        <div className="flex-shrink-0 relative self-stretch" style={{ width: '38%', minHeight: 200 }}>
+          <img
+            src={projet.image ?? '/images/VPN_deployment.png'}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(to right, transparent 65%, rgba(10,14,20,0.75))' }}
           />
         </div>
+
+        {/* Right: info — 62% */}
+        <div className="flex-shrink-0 p-3 flex flex-col gap-1.5 min-w-0" style={{ width: '62%' }}>
+
+          {/* Badges + name + value */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1 mb-1 flex-wrap">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${crit.badge}`}>
+                  {projet.criticite}
+                </span>
+                <span className={`text-[10px] px-2 py-0.5 rounded ${STATUS_BADGE[projet.status] || 'bg-slate-500/20 text-slate-400'}`}>
+                  {projet.status}
+                </span>
+              </div>
+              <h3 className="text-white text-sm font-semibold leading-tight">{projet.nom}</h3>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-[10px] text-slate-500">Valeur</p>
+              <p className="text-cyber-cyan font-bold text-base font-mono">{projet.valeur}pt</p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div>
+            <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+              <span className="truncate max-w-[70%]">{currentStepName}</span>
+              <span className="font-mono">{projet.currentStep}/{projet.etapes.length}</span>
+            </div>
+            <div className="h-2 bg-cyber-bg rounded-full overflow-hidden border border-cyber-border/40">
+              <motion.div
+                className="h-full bg-gradient-to-r from-cyber-cyan to-cyber-blue"
+                animate={{ width: `${stepPct}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+          </div>
+
+          {/* Risk Meter */}
+          {!isOpponent && <RiskMeter level={projet.riskLevel} maxRisk={projet.maxRisk} />}
+
+          {/* Proofs (own projects) */}
+          {!isOpponent && projet.preuvesRequises.length > 0 && (
+            <div>
+              <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-0.5">Preuves</p>
+              <div className={projet.preuvesRequises.length >= 3 ? 'grid grid-cols-2 gap-0.5' : 'space-y-0.5'}>
+                {projet.preuvesRequises.map((p) => {
+                  const attached = projet.preuvesAttachees.includes(p);
+                  return (
+                    <div
+                      key={p}
+                      className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border leading-tight ${
+                        attached
+                          ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/30'
+                          : 'bg-transparent text-slate-500 border-slate-700/50'
+                      }`}
+                    >
+                      <span className="flex-shrink-0">{attached ? '✓' : '○'}</span>
+                      <span className="truncate">{p}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Proofs (opponent projects) */}
+          {isOpponent && projet.preuvesRequises.length > 0 && (
+            <div>
+              <p className="text-[9px] text-slate-700 uppercase tracking-widest mb-0.5">Preuves</p>
+              <div className={projet.preuvesRequises.length >= 3 ? 'grid grid-cols-2 gap-0.5' : 'space-y-0.5'}>
+                {projet.preuvesRequises.map((p) => {
+                  const attached = projet.preuvesAttachees.includes(p);
+                  return (
+                    <div
+                      key={p}
+                      className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border leading-tight ${
+                        attached
+                          ? 'bg-red-900/20 text-red-400 border-cyber-red/25'
+                          : 'bg-transparent text-slate-600 border-slate-700/40'
+                      }`}
+                    >
+                      <span className="flex-shrink-0">{attached ? '✓' : '○'}</span>
+                      <span className="truncate">{p}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
-
-      {/* Risk Meter */}
-      {!isOpponent && <RiskMeter level={projet.riskLevel} maxRisk={projet.maxRisk} />}
-
-      {/* ── Proofs (own projects) ─────────────────────────────── */}
-      {!isOpponent && projet.preuvesRequises.length > 0 && (
-        <div className="mt-2 space-y-0.5">
-          <p className="text-[8px] text-slate-600 uppercase tracking-widest mb-1">Preuves requises</p>
-          {projet.preuvesRequises.map((p) => {
-            const attached = projet.preuvesAttachees.includes(p);
-            return (
-              <div
-                key={p}
-                className={`flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded border leading-tight ${
-                  attached
-                    ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/30'
-                    : 'bg-transparent text-slate-500 border-slate-700/50'
-                }`}
-              >
-                <span className="flex-shrink-0">{attached ? '✓' : '○'}</span>
-                <span className="truncate">{p}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Proofs (opponent projects) ────────────────────────── */}
-      {isOpponent && projet.preuvesRequises.length > 0 && (
-        <div className="mt-2 space-y-0.5">
-          <p className="text-[8px] text-slate-700 uppercase tracking-widest mb-1">Preuves</p>
-          {projet.preuvesRequises.map((p) => {
-            const attached = projet.preuvesAttachees.includes(p);
-            return (
-              <div
-                key={p}
-                className={`flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded border leading-tight ${
-                  attached
-                    ? 'bg-red-900/20 text-red-400 border-cyber-red/25'
-                    : 'bg-transparent text-slate-600 border-slate-700/40'
-                }`}
-              >
-                <span className="flex-shrink-0">{attached ? '✓' : '○'}</span>
-                <span className="truncate">{p}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Blocked overlay */}
       {(isNoGo || isBloque) && (
